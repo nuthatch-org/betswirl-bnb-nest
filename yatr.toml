@@ -1,0 +1,63 @@
+# yatr - https://github.com/cargopete/yatr
+#
+# Task names match every nuthatch-org nest, so `yatr ci` means the same everywhere.
+# The aggregate is `ci`, not `check`: `yatr check` is a builtin and shadows a task of that name.
+# These tasks need the `nuthatch` binary on PATH (cargo install nuthatch).
+
+[settings]
+cache = true
+
+[tasks.gen]
+desc = "Regenerate schema.json / llms.txt / semantic.toml from nuthatch.toml"
+run = ["nuthatch schema"]
+sources = ["nuthatch.toml", "abis/**/*.json"]
+no_cache = true
+
+[tasks.drift]
+desc = "Fail if the derived artifacts are stale against nuthatch.toml"
+run = [
+    "nuthatch schema",
+    "git diff --exit-code -- schema.json llms.txt semantic.toml",
+]
+sources = ["nuthatch.toml", "abis/**/*.json", "schema.json", "llms.txt", "semantic.toml"]
+
+[tasks.doctor]
+desc = "Probe the configured RPC endpoints for getLogs width and archive depth"
+run = ["nuthatch doctor"]
+no_cache = true
+
+[tasks.dev]
+desc = "Index and serve this nest locally"
+run = ["nuthatch dev"]
+foreground = true
+no_cache = true
+
+[tasks.views]
+desc = "Regenerate views/*.sql from tools/genviews.js"
+run = ["node tools/genviews.js ."]
+sources = ["tools/genviews.js"]
+outputs = ["views/*.sql"]
+
+[tasks.views-drift]
+desc = "Fail if views/*.sql differ from what tools/genviews.js writes"
+run = [
+    "node tools/genviews.js .",
+    "git diff --exit-code -- views",
+]
+sources = ["tools/genviews.js", "views/*.sql"]
+
+[tasks.checks]
+desc = "Run the w1 goldens in checks/ against indexed data"
+run = ["nuthatch check"]
+sources = ["checks/**/*.sql"]
+no_cache = true
+
+[tasks.smoke]
+desc = "Reference comparison and goldens against every served smoke window (tests/README.md; needs NEST_RPC)"
+run = ["bash tests/run.sh"]
+no_cache = true
+
+[tasks.ci]
+desc = "What CI can run without RPC access or indexed data"
+depends = ["drift", "views-drift"]
+run = []
